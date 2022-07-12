@@ -1,0 +1,43 @@
+#!/bin/dash
+export PATH=$PATH:.
+details=$1
+
+# split up
+i=$(echo "$details" | cut -d':' -f1)
+file=$(echo "$details" | cut -d':' -f2)
+
+
+if [ "$i" = '' ]
+then
+    # file not found in index
+    if [ ! -f ".legit/index/$file" ]
+    then
+        echo "legit-show: error: '$file' not found in index"
+        exit
+    fi
+else
+    # commit directory not found
+    if [ ! -d ".legit/commit.$i" ]
+    then
+        echo "legit-show: error: unknown commit '$i'"
+        exit
+    fi
+    
+    # file not found in commit directory
+    if [ ! -f ".legit/commit.$i/$file" -a ! -f ".legit/commit.$i/$file." ]
+    then
+        echo "legit-show: error: '$file' not found in commit $i"
+        exit
+    fi
+fi
+
+
+
+if [ "$i" = '' ]
+then 
+    # print contents of file in index since commit num not provided
+    cat .legit/index/$file
+else
+    # print .legit/commit.i/file
+    cat .legit/commit.$i/$file
+fi

@@ -1,0 +1,162 @@
+#!/bin/dash
+export PATH=$PATH:.
+
+
+# usage error
+if [ $# -lt 1 ]
+then
+    echo "usage: legit-rm [--force] [--cached] <filenames>"
+    exit
+fi 
+
+# not a single commit
+if [ ! -d ".legit/commit.0" ]
+then
+    echo "legit-rm: error: your repository does not have any commits yet"
+    exit
+fi
+
+# file errors for all options
+files="$@"
+for file in $files;
+do
+    # ignoring options
+    if [ "$file" != '--force' -a "$file" != '--cached' ]
+    then
+        # no file in index
+        if [ ! -f ".legit/index/$file" ]
+        then 
+            echo "legit-rm: error: '$file' is not in the legit repository"
+            exit
+        fi
+    fi
+done
+
+
+# find most recent commit- will be useful later
+found=1
+recent=0
+while [ $((found)) -eq 1 ]
+do
+    dir=.legit/commit.$recent
+    if [ -d "$dir" ]
+    then 
+        recent=$(($recent + 1))
+    else
+        found=0
+    fi
+done    
+recent=$(($recent - 1))
+
+
+# force option is used - NO errors for force option since it overrides
+if [ "$1" = '--force' ]
+then
+    if [ "$2" = '--cached' ]
+    then
+        # legit-rm --force --cache
+        files="$@"
+        for file in $files;
+        do
+            if [ "$file" != '--force' -a "$file" != '--cached' ]
+            then 
+                rm .legit/index/$file
+            fi
+        done
+    else
+        # legit-rm --force
+        files="$@"
+        for file in $files;
+        do
+            if [ "$file" != '--force' ]
+            then 
+                rm .legit/index/$file
+                rm .legit/copy/$file
+                rm $file
+            fi
+        done
+    fi 
+    
+# ONLY cache option is used
+elif [ "$1" = '--cached' ]
+then
+    # legit-rm --cache
+    files="$@"
+    for file in $files;
+    do
+        if [ "$file" != '--cached' ] 
+        then
+            dir1=.legit/index/$file
+            dir2=.legit/commit.$recent/$file
+            
+            err="legit-rm: error: '$file' in index is different to both working file and repository"
+            
+            # checks if file is present in index and recent commit 
+            if [ -f "$dir1" -a -f "$dir2" ]
+            then 
+                
+                # differences in all three directories
+                if [ "$(diff -qr $dir1 $file)" -a "$(diff -qr $dir2 $dir1)" ]
+                then
+                    echo "$err"
+                    exit
+                fi
+            fi 
+            rm .legit/index/$file
+        fi
+    done
+    
+# NO options are used
+else
+    # legit-rm 
+    files="$@"
+    for file in $files;
+    do
+        dir1=.legit/index/$file
+        dir2=.legit/commit.$recent/$file
+        
+        err1="legit-rm: error: '$file' in index is different to both working file and repository"
+        err2="legit-rm: error: '$file' has changes staged in the index"
+        err3="legit-rm: error: '$file' in repository is different to working file"
+        
+        # checks if file present in index and recent commit
+        if [ -f "$dir1" -a -f "$dir2" ]
+        then 
+            # changes in file that havent been added to index and commited
+            if [ "$(diff -qr $dir1 $file)" -a "$(diff -qr $dir2 $dir1)" ]
+            then
+                echo "$err1"
+                exit
+            fi
+            
+        
+            # changes in a file in the index that havent been commited
+            if [ "$(diff -qr $dir1 $dir2)" ]
+            then 
+                echo "$err2"
+                exit
+            fi
+        fi
+        
+        # checks if file present in recent commit 
+        if [ -f "$dir2" ]
+        then
+            # file in working dir different from that file in repo 
+            if [ "$(diff -qr $dir2 $file)" ]
+            then 
+                echo "$err3"
+                exit
+            fi
+        fi
+        
+        # checks if file present in index but not in recent commit
+        if [ -f "$dir1" -a ! -f "$dir2" ]
+        then
+            echo "$err2"
+            exit
+        fi 
+        
+        rm .legit/index/$file
+        rm $file
+    done
+fi

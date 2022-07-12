@@ -1,0 +1,106 @@
+#!/bin/dash
+export PATH=$PATH:.
+# if there are no commits yet print error
+if [ ! -d ".legit/commit.0" ]
+then
+    echo "legit-status: error: your repository does not have any commits yet"
+    exit
+fi
+
+
+# looking for most recent commit
+found=1
+recent=0
+while [ $((found)) -eq 1 ]
+do
+    dir=.legit/commit.$recent
+    if [ -d "$dir" ]
+    then 
+        recent=$(($recent + 1))
+    else
+        found=0
+    fi
+done
+        
+recent=$(($recent - 1))
+
+# if there exists a file in working dir 
+if [ "$(ls | wc -l)" -ge 1 ]
+then
+    # copies files from working directory into .legit/files
+    for file in *;
+    do 
+        if [ ! -f ".legit/files/$file" ]
+        then
+            cp $file .legit/files
+        fi
+    done
+fi
+
+# if there exists a file in working dir 
+if [ "$(ls .legit/files/ | wc -l)" -ge 1 ]
+then
+    # copies files from .legit/copy into .legit/files
+    for file in .legit/copy/*;
+    do 
+        if [ ! -f ".legit/files/$file" ]
+        then
+            cp $file .legit/files
+        fi
+    done 
+fi 
+
+dir1=.legit/index/
+dir2=.legit/commit.$recent/
+for file in .legit/files/*;
+do
+    real_file=$(echo "$file" | cut -d'/' -f3)
+    if [ -f "$real_file" -a -f "$dir1$real_file" -a -f "$dir2$real_file" ]
+    then
+        # if file in working dir = index = commit
+        if [ ! "$(diff -qr $real_file $dir1$real_file)" -a ! "$(diff -qr $dir1$real_file $dir2$real_file)" ]
+        then
+            echo "$real_file - same as repo"
+            
+        # if file in working dir = index != commit
+        elif [ ! "$(diff -qr $real_file $dir1$real_file)" -a "$(diff -qr $dir1$real_file $dir2$real_file)" ]
+        then
+            echo "$real_file - file changed, changes staged for commit"
+            
+        # if file in working dir != index != commit
+        elif [ "$(diff -qr $real_file $dir1$real_file)" -a "$(diff -qr $dir1$real_file $dir2$real_file)" ]
+        then
+            echo "$real_file - file changed, different changes staged for commit"
+            
+        # if file in working dir != index & index = commit
+        elif [ "$(diff -qr $real_file $dir1$real_file)" -a ! "$(diff -qr $dir1$real_file $dir2$real_file)" ]
+        then
+            echo "$real_file - file changed, changes not staged for commit"
+        fi
+        
+    # file in working dir, index but not recent commit   
+    elif [ -f "$real_file" -a -f "$dir1$real_file" -a ! -f "$dir2$real_file" ]
+    then
+        echo "$real_file - added to index"
+    
+    # file not in working directory but in index - rm file
+    elif [ ! -f "$real_file" -a -f "$dir1$real_file" ]
+    then
+        echo "$real_file - file deleted"
+        
+    # file not in working directory and index   - legit-rm file
+    elif [ ! -f "$real_file" -a ! -f "$dir1$real_file" ]
+    then
+        echo "$real_file - deleted"
+        
+    # file has no relationship with repo    
+    else
+        echo "$real_file - untracked"
+    fi 
+
+done   
+
+
+# added to index
+# deleted
+# file deleted

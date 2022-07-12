@@ -1,0 +1,109 @@
+#!/bin/dash  
+export PATH=$PATH:.
+# usage error
+if [ $# -lt 2 ]
+then
+    echo "usage: legit-commit [-a] -m 'message'"
+    exit
+fi  
+
+# if index is empty then print error then print 'nothing to commit' 
+if [ ! "$(ls -A .legit/index/)" ]
+then
+    echo "nothing to commit"
+    exit
+fi
+
+
+# locating most recent commit
+found=1
+recent=0
+while [ $((found)) -eq 1 ]
+do
+    dir=.legit/commit.$recent
+    if [ -d "$dir" ]
+    then 
+        recent=$(($recent + 1))
+    else
+        found=0
+    fi
+done
+    
+recent=$(($recent - 1))
+
+
+# checks if '-a' is the second argument
+if [ "$1" = '-a' ]
+then
+    if [ "$2" != '-m' ]
+    then 
+        echo "usage: legit-commit [-a] -m 'message'"
+        exit
+    fi
+    
+    # go through files in index
+    files=.legit/index/*
+    for file in $files;
+    do
+        #split
+        file_to_add=$(echo "$file" | cut -d'/' -f3)
+        # call init-add on each files
+        # ./legit-add "$file_to_add"
+        legit-add "$file_to_add"        
+    done
+    
+    # call init-commit: init-commit -m $3
+    #./legit-commit -m "$3"
+    legit-commit -m "$3"
+    exit
+fi
+
+
+# if there is no -a then normal commit will happen which is below
+
+if [ "$1" != '-m' ]
+then
+    echo "usage: legit-commit [-a] -m 'message'"
+    exit
+fi 
+
+# 5 represents all items created when legit-init was run + commit.0
+if [ "$(ls .legit | wc -l)" -ge 5 ]     
+then
+    
+    dir1=.legit/index/
+    dir2=.legit/commit.$recent/
+    
+    if [ ! "$(diff -qr $dir1 $dir2)" ]
+    then
+        echo "nothing to commit"
+        exit
+    fi
+fi
+
+# if no errors were detected then commit
+message=$2
+i=0
+present=1
+# loop until find next available commit number 
+while [ $((present)) -eq 1 ]
+do
+    new_commit=.legit/commit.$i
+    if [ -d "$new_commit" ]
+    then 
+        i=$(($i + 1)) 
+    else 
+        mkdir $new_commit
+        present=0
+    fi
+done        
+
+
+source=.legit/index/*
+for file in $source;
+do
+    cp $file $new_commit
+done
+
+echo "Committed as commit $i"
+echo "$i $message\n$(cat .legit/log)" > .legit/log

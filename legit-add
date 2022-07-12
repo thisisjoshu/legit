@@ -1,0 +1,52 @@
+#!/bin/dash
+export PATH=$PATH:.
+# usage error
+if [ $# -lt 1 ]
+then
+    echo "usage: legit-add <filenames>"
+    exit
+fi   
+
+# no directory error
+if [ ! -d ".legit" ]
+then 
+    echo "legit-add: error: no .legit directory containing legit repository exists"
+    exit
+fi
+    
+# no file error
+files="$@"
+for file in $files;
+do
+    if [ ! -f "$file" -a ! -f ".legit/copy/$file" ]
+    then
+        echo "legit-add: error: can not open '$file'"
+        exit 
+    fi
+done
+
+# copying of files
+files="$@"
+for file in $files;
+do
+    valid=`echo $file | egrep ^[a-zA-Z0-9][A-Za-z0-9\._-]*$`
+    
+    if [ "$file" = "$valid" ]
+    then
+        if [ ! -f ".legit/copy/$file" ]
+        then 
+            cp $file .legit/copy
+        fi
+        
+        if [ ! -f "$file" ]
+        then 
+            cp .legit/copy/$file .legit/index
+            mv .legit/index/$file .legit/index/$file. # renames deleted files
+        else
+            cp $file .legit/index
+        fi 
+    else
+        echo "legit-add: error: invalid filename '$file'"
+    exit
+    fi
+done

@@ -1,0 +1,23 @@
+#!/bin/dash  
+
+# Usage error
+if [ $# -ne 0 ]
+then
+    echo "usage: legit-init"
+    exit
+fi
+
+
+# Search for '.legit', if doesn't exist then initialize
+if [ -d ".legit" ]
+then 
+    echo "legit-init: error: .legit already exists"
+else
+    mkdir .legit            # legit directory
+    mkdir .legit/index      # staging area
+    touch .legit/log        # keeps record of commits
+    mkdir .legit/files      # copies of ALL unique files
+    mkdir .legit/copy       # keeps copies of ALL files so that when
+                            # manually removed it can still add
+    echo "Initialized empty legit repository in .legit"
+fi

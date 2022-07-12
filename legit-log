@@ -1,0 +1,4 @@
+#!/bin/dash
+export PATH=$PATH:.
+# print log file
+cat .legit/log
